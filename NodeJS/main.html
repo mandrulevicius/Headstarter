@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>
+        Welcome
+    </h1>
+    <p>
+        Create an account or login with existing one
+    </p>
+    <!--<form action="/add" method="POST">-->
+    <form action="/add" method="POST">
+        <fieldset>
+            <h3>Create account</h3>
+            <label for="gamerid">Username:</label>
+            <input type="text" id="gameridnew" name="gamerIDnew" required>
+            <br><br>
+            <label for="gamerpass">Password:</label>
+            <input type="text" id="gamerpassnew" name="gamerPasswordnew" required>
+            <br><br>
+            <input type="submit" value="Create">
+        </fieldset>
+    </form>
+    <!--<form action="/login" method="POST">-->
+    <form action="/login" method="POST">
+        <fieldset>
+            <h3>Login</h3>
+            <label for="gamerid">Username:</label>
+            <input type="text" id="gamerid" name="gamerID" required>
+            <br><br>
+            <label for="gamerpass">Password:</label>
+            <input type="text" id="gamerpass" name="gamerPassword" required>
+            <br><br>
+            <input type="submit" value="Login">
+        </fieldset>
+    </form>
+</body>
+</html>
