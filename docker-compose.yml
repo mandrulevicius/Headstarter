@@ -4,7 +4,7 @@ services:
     build:
       context: ./nodejs
     image: headstarter-nodejs-comp
-    depends on:
+    depends_on:
       - mysql
       - sqlstring
     networks:
