@@ -31,6 +31,9 @@ let sqlConnection = mysql.createConnection(connectionOptions);
 
 sqlConnection.connect();
 
+// for some reason this is called before the db is ready?
+// depends_on should have solved this?
+// try to move this code to where it is supposed to be, after accepting a request from website
 sqlConnection.query('SELECT * FROM web_users', function (error, results, fields) {
     if (error) throw error;
     responseString = '';

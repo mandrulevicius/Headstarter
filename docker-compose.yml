@@ -6,10 +6,6 @@ services:
     image: headstarter-nodejs-comp
     depends_on:
       - mysql
-      - sqlstring
-    networks:
-      - frontend
-      - backend
     environment:
       - MYSQL_HOST=headstarter-mysql-comp
       - MYSQL_USER=adminuser
@@ -22,8 +18,6 @@ services:
     build:
       context: ./mysql
     image: headstarter-mysql-comp
-    networks:
-      - backend
     environment:
       - MYSQL_ROOT_PASSWORD=test99rootpasses
       - MYSQL_USER=adminuser
