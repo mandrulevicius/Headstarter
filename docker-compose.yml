@@ -1,0 +1,32 @@
+version: "3.9"
+services:
+  nodejs:
+    build:
+      context: ./nodejs
+    image: headstarter-nodejs-comp
+    depends on:
+      - mysql
+      - sqlstring
+    networks:
+      - frontend
+      - backend
+    environment:
+      - MYSQL_HOST=headstarter-mysql-comp
+      - MYSQL_USER=adminuser
+      - MYSQL_PASSWORD=test99passes
+      - MYSQL_DATABASE=website_data
+    ports:
+      - "30001:3000"
+    container_name: headstarter-nodejs-comp
+  mysql:
+    build:
+      context: ./mysql
+    image: headstarter-mysql-comp
+    networks:
+      - backend
+    environment:
+      - MYSQL_ROOT_PASSWORD=test99rootpasses
+      - MYSQL_USER=adminuser
+      - MYSQL_PASSWORD=test99passes
+      - MYSQL_DATABASE=website_data
+    container_name: headstarter-mysql-comp

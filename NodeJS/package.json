@@ -1,0 +1,16 @@
+{
+  "name": "website",
+  "version": "1.0.0",
+  "description": "website for user accounts",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js",
+    "test": "placeholder"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mysql": "^2.18.1",
+    "sqlstring": "^2.3.2"
+  }
+}
