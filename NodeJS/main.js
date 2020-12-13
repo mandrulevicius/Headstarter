@@ -1,15 +1,55 @@
+'use strict';
 const http = require('http');  // use express?
 const fs = require('fs');
+const mysql = require('mysql');
 const sqlString = require('sqlstring');
-const PORT = 3000;
+const WEBSITE_PORT = process.env.PORT || 3000;
+//const STATUS_OK_CODE = 200 //feels like overkill to use this
 const CREATION_INPUT_FIELD_NAME = 'gameridnew'
 const LOGIN_INPUT_FIELD_NAME = 'gamerid'
 const CREATION_INPUT_PASSWORD_FIELD_NAME = 'gamerpasswordnew'
 const LOGIN_INPUT_PASSWORD_FIELD_NAME = 'gamerpassword'
 // This just might be too much... Consider a different naming approach
 
-//const STATUS_OK_CODE = 200 
+const mysqlHost = process.env.MYSQL_HOST || 'localhost'; //how does this || work?
+const mysqlPort = process.env.MYSQL_PORT || '3306';
+const mysqlUser = process.env.MYSQL_USER || 'root';
+const mysqlPassword = process.env.MYSQL_PASSWORD || 'test99passes';
+const mysqlDatabase = process.env.MYSQL_DATABASE || 'website_data';
 
+const connectionOptions = {
+    host: mysqlHost,
+    port: mysqlPort,
+    user: mysqlUser,
+    password: mysqlPassword,
+    database: mysqlDatabase
+};
+
+console.log('MySQL connection: ', connectionOptions)
+
+let sqlConnection = mysql.createConnection(connectionOptions);
+
+sqlConnection.connect();
+
+sqlConnection.query('SELECT * FROM web_users', function (error, results, fields) {
+    if (error) throw error;
+    responseString = '';
+
+    results.forEach(function(data) {
+        responseString += data.ITEM_NAME + ' : ';
+        console.log(data)
+    })
+
+    if (responseString.length == 0) {
+        responseString = 'No records found'
+    }
+
+    console.log(responseString);
+
+    results.status(200).send(responseString);
+});
+
+sqlConnection.end()
 
 const server = http.createServer(function (request, response) {
     let body = '';
@@ -37,11 +77,11 @@ const server = http.createServer(function (request, response) {
     });
 });
 
-server.listen(PORT, function (error){
+server.listen(WEBSITE_PORT, function (error){
     if (error) {
         console.log('Something went wrong ', error);
     } else {
-        console.log('Server is listening on port ', PORT);
+        console.log('Server is listening on port ', WEBSITE_PORT);
         // why does this return yellow number with space?
         // '' + argument does not
     };
