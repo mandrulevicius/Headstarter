@@ -13,14 +13,14 @@
         Create an account or login with existing one
     </p>
     <!--<form action="/add" method="POST">-->
-    <form action="/add" method="POST">
-        <fieldset>
+    <form action="/add" method="POST" name="test">
+        <fieldset id="flst" name="fieldset1">
             <h3>Create account</h3>
             <label for="gamerid">Username:</label>
-            <input type="text" id="gameridnew" name="gamerIDnew" required>
+            <input type="text" id="gameridnew" name="gameridnew" required>
             <br><br>
             <label for="gamerpass">Password:</label>
-            <input type="text" id="gamerpassnew" name="gamerPasswordnew" required>
+            <input type="text" id="gamerpassnew" name="gamerpasswordnew" required>
             <br><br>
             <input type="submit" value="Create">
         </fieldset>
@@ -30,10 +30,10 @@
         <fieldset>
             <h3>Login</h3>
             <label for="gamerid">Username:</label>
-            <input type="text" id="gamerid" name="gamerID" required>
+            <input type="text" id="gamerid" name="gamerid" required>
             <br><br>
             <label for="gamerpass">Password:</label>
-            <input type="text" id="gamerpass" name="gamerPassword" required>
+            <input type="text" id="gamerpass" name="gamerpassword" required>
             <br><br>
             <input type="submit" value="Login">
         </fieldset>
