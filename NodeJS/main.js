@@ -14,8 +14,9 @@ const LOGIN_INPUT_PASSWORD_FIELD_NAME = 'gamerpassword'
 const mysqlHost = process.env.MYSQL_HOST || 'localhost'; //how does this || work?
 const mysqlPort = process.env.MYSQL_PORT || '3306';
 const mysqlUser = process.env.MYSQL_USER || 'root';
-const mysqlPassword = process.env.MYSQL_PASSWORD || 'test99passes';
+const mysqlPassword = process.env.MYSQL_PASSWORD || 'test99rootpasses';
 const mysqlDatabase = process.env.MYSQL_DATABASE || 'website_data';
+//should these still be consts?
 
 const connectionOptions = {
     host: mysqlHost,
@@ -31,28 +32,30 @@ let sqlConnection = mysql.createConnection(connectionOptions);
 
 sqlConnection.connect();
 
-// for some reason this is called before the db is ready?
-// depends_on should have solved this?
-// try to move this code to where it is supposed to be, after accepting a request from website
+// depends_on doesnt solve calling db before ready because it doesnt wait for dependants to be ready
+// can restart after mysql is finished booting up
+
+// also seems to be an authentication issue. nodejs doesnt support mysql8
+// solved with initialization sql script
 sqlConnection.query('SELECT * FROM web_users', function (error, results, fields) {
     if (error) throw error;
-    responseString = '';
+    let responseString = '';
 
     results.forEach(function(data) {
         responseString += data.ITEM_NAME + ' : ';
-        console.log(data)
-    })
+        console.log(data);
+    });
 
     if (responseString.length == 0) {
-        responseString = 'No records found'
-    }
+        responseString = 'No records found';
+    };
 
     console.log(responseString);
 
-    results.status(200).send(responseString);
+    //response.status(200).send(responseString); this is for express
 });
 
-sqlConnection.end()
+
 
 const server = http.createServer(function (request, response) {
     let body = '';
@@ -89,6 +92,8 @@ server.listen(WEBSITE_PORT, function (error){
         // '' + argument does not
     };
 });
+
+sqlConnection.end() // do i need this here?
 
 
 //dont like this function, consider structuring this code differently

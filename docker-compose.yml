@@ -8,7 +8,7 @@ services:
       - mysql
     environment:
       - MYSQL_HOST=headstarter-mysql-comp
-      - MYSQL_USER=adminuser
+      - MYSQL_USER=nodejs_server
       - MYSQL_PASSWORD=test99passes
       - MYSQL_DATABASE=website_data
     ports:
@@ -20,7 +20,5 @@ services:
     image: headstarter-mysql-comp
     environment:
       - MYSQL_ROOT_PASSWORD=test99rootpasses
-      - MYSQL_USER=adminuser
-      - MYSQL_PASSWORD=test99passes
       - MYSQL_DATABASE=website_data
     container_name: headstarter-mysql-comp

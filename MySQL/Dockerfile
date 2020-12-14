@@ -1,4 +1,4 @@
-FROM mysql
+FROM mysql:latest
 
 ENV MYSQL_DATABASE website_data
 
