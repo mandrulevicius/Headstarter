@@ -2,7 +2,9 @@
 const http = require('http');  // use express?
 const fs = require('fs');
 const mysql = require('mysql');
-const sqlString = require('sqlstring');
+const sqlString = require('sqlstring'); //mysql also has .escape
+//do i need to both format and escape??
+// seems like ? placeholder is enough?
 const WEBSITE_PORT = process.env.PORT || 3000;
 //const STATUS_OK_CODE = 200 //feels like overkill to use this
 const CREATION_INPUT_FIELD_NAME = 'gameridnew'
@@ -68,7 +70,11 @@ const server = http.createServer(function (request, response) {
             console.log('POSTed: ' + body);
             parseUserInput(body);
             response.writeHead(200); //Why do I need this?
+            // send a response?
             //response.end();
+
+            // deal with response in .end(callback)?
+            // does that even help me?
         };
     });
     response.writeHead(200, { 'Content-Type' : 'text/html'});
@@ -102,7 +108,7 @@ sqlConnection.end() // do i need this here?
 function parseUserInput(inputString) {
     let credentials = storeUserInput(inputString);
     let new_user;
-    for (key in credentials) {
+    for (let key in credentials) {
         if (key.search(LOGIN_INPUT_FIELD_NAME) !== -1) {
             new_user = is_new_user(key);
             break;
@@ -175,6 +181,31 @@ function is_new_user(inputName) {
 // then would have unnecessary data
 function user_exists(userName) {
     //check if user exists in db
+    sqlQuery = mysql.format('SELECT * FROM web_users WHERE web_user_name=?', userName)
+    sqlConnection.query(sqlQuery, function (error, results, fields) {
+        if (error) throw error;
+        let responseString = '';
+    
+        results.forEach(function(data) {
+            responseString += data.ITEM_NAME + ' : ';
+            console.log(data);
+        });
+    
+        //if (responseString.length == 0) {
+        //    responseString = 'No records found';
+        //};
+    
+        console.log(responseString);
+
+        results = responseString
+    });
+    // how to get data out of callback function?
+
+    // im really structuring the code wrong
+
+    // could use promises
+
+    // first lets make it simple please
 };
 
 
