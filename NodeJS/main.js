@@ -1,17 +1,21 @@
 'use strict';
+//THIS CODE IS HORRIBLE, CONNECTIONS REGULARLY THROW ERRORS INTO CONSOLE
+//BUT IT WORKS
 const http = require('http');  // use express?
 const fs = require('fs');
 const mysql = require('mysql');
 const sqlString = require('sqlstring'); //mysql also has .escape
 //do i need to both format and escape??
 // seems like ? placeholder is enough?
+
 const WEBSITE_PORT = process.env.PORT || 3000;
 //const STATUS_OK_CODE = 200 //feels like overkill to use this
+
 //const CREATION_INPUT_FIELD_NAME = 'gameridnew'
-const USER_FIELD = 'gamerid'
+const USER_FIELD = 'gamerid';
 //const CREATION_INPUT_PASSWORD_FIELD_NAME = 'gamerpasswordnew'
-const PASSWORD_FIELD = 'gamerpassword'
 // This just might be too much... Consider a different naming approach
+const PASSWORD_FIELD = 'gamerpassword';
 
 const mysqlHost = process.env.MYSQL_HOST || 'localhost'; //how does this || work?
 const mysqlPort = process.env.MYSQL_PORT || '3306';
@@ -19,6 +23,7 @@ const mysqlUser = process.env.MYSQL_USER || 'root';
 const mysqlPassword = process.env.MYSQL_PASSWORD || 'test99rootpasses';
 const mysqlDatabase = process.env.MYSQL_DATABASE || 'website_data';
 //should these still be consts?
+// from what i understand, there are two types of consts - the full uppercase and lowercase
 
 const connectionOptions = {
     host: mysqlHost,
@@ -30,7 +35,7 @@ const connectionOptions = {
     //connectionLimit: 10
 };
 
-console.log('MySQL connection: ', connectionOptions)
+console.log('MySQL connection: ', connectionOptions);
 
 //let sqlConnection = mysql.createConnection(connectionOptions);
 let sqlConnection = mysql.createPool(connectionOptions);
@@ -109,11 +114,11 @@ const server = http.createServer(function (request, response) {
         if (request.method === 'POST') {
             //try to create user
             //send response - account created, login
-            console.log('post request body: ', body);
-            parseUserInput(body, response, request.url)
+            console.log('!!POST REQUEST BODY: ', body);
+            parseUserInput(body, response, request.url);
             //parse user input
             //loadPage(response, 'user_created.html');
-        }
+        };
     });
     
     
@@ -141,13 +146,13 @@ function loadPage(response, pageName) {
         }
         response.end();
     });
-}
+};
 
 
 function createNewUser(credentials, response) {
     //sqlConnection.connect();
     let sqlQuery = mysql.format('SELECT * FROM web_users WHERE web_user_name=?',
-        credentials[USER_FIELD])
+        credentials[USER_FIELD]);
     sqlConnection.query(sqlQuery, function (error, results, fields) {
         if (error) throw error;
         let responseString = '';
@@ -157,15 +162,15 @@ function createNewUser(credentials, response) {
             console.log(data);
         });
     
-        console.log(responseString);
+        console.log('!!CREATE NEW ', responseString);
 
         if (responseString.length == 0) {
             insertNewUser(credentials, response);
         } else {
             loadPage(response, 'user_exists.html');
-            //sqlConnection.end()
+            //sqlConnection.end();
         };
-    })
+    });
 };
 
 
@@ -173,7 +178,7 @@ function insertNewUser(credentials, response) {
     // I might be triple escaping with format function here, ? placeholders and sqlstring.escape
     let sqlQuery = mysql.format(
         'INSERT INTO web_users (web_user_name, web_user_password) VALUES(?, ?)',
-        [credentials[USER_FIELD], credentials[PASSWORD_FIELD]])
+        [credentials[USER_FIELD], credentials[PASSWORD_FIELD]]);
     sqlConnection.query(sqlQuery, function (error, results, fields) {
         if (error) {
             loadPage(response, 'user_creation_failed.html');
@@ -207,9 +212,65 @@ function insertNewUser(credentials, response) {
             loadPage(response, 'user_creation_failed.html');
         };
         */
-    })
+    });
 };
+  
+
+function loginUser(credentials, response) {
+    let sqlQuery = mysql.format(
+        'SELECT * FROM web_users WHERE web_user_name=?', credentials[USER_FIELD]);
+    sqlConnection.query(sqlQuery, function (error, results, fields) {
+        if (error) throw error;
+        let responseString = '';
     
+        results.forEach(function(data) {
+            responseString += data.ITEM_NAME + ' : ';
+            console.log(data);
+        });
+    
+        console.log('!!LOGIN ', responseString);
+        // how to get password from responseString?
+        // why is responseString undefined?
+
+        if (responseString.length == 0) {
+            loadPage(response, 'user_not_exists.html');
+        } else {
+            //check password here
+            loadPage(response, 'wrong_password.html');
+        };
+    });    
+};
+
+
+function checkPassword(inputPassword, dbPassword) {
+    if (inputPassword === dbPassword) {
+        return true;
+    };
+    return false;
+};
+
+
+function listUsers(response) {
+    let sqlQuery = mysql.format('SELECT * FROM web_users');
+    sqlConnection.query(sqlQuery, function (error, results, fields) {
+        if (error) throw error;
+        let responseString = '';
+    
+        results.forEach(function(data) {
+            responseString += data.ITEM_NAME + ' : ';
+            console.log(data);
+        });
+    
+        console.log('!!LIST ', responseString);
+
+        if (responseString.length == 0) {
+            // load message that table is empty
+        } else {
+            // load user list here
+        };
+    }); 
+}
+
 
 // might need to use promises to make it better structured
 function parseUserInput(inputString, response, userAction) {
@@ -217,6 +278,10 @@ function parseUserInput(inputString, response, userAction) {
 
     if (userAction === '/create') {
         createNewUser(credentials, response);
+    } else if (userAction === '/login') {
+        loginUser(credentials, response);
+    } else if (userAction === '/list') {
+        listUsers(response); //how to pass response into html file?
     };
     /*
     let new_user;
