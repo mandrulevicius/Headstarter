@@ -6,21 +6,18 @@
     <title>Document</title>
 </head>
 <body>
-    <h1>
-        Welcome
-    </h1>
     <p>
-        Create an account or login with existing one
+        User creation failed.
     </p>
-    <!--<form action="/add" method="POST">-->
-    <form action="/add" method="POST" name="test">
-        <fieldset id="flst" name="fieldset1">
+    <!--<form action="/create" method="POST">-->
+    <form action="/create" method="POST" name="test">
+        <fieldset>
             <h3>Create account</h3>
             <label for="gamerid">Username:</label>
-            <input type="text" id="gameridnew" name="gameridnew" required>
+            <input type="text" id="gamerid" name="gamerid" required>
             <br><br>
             <label for="gamerpass">Password:</label>
-            <input type="text" id="gamerpassnew" name="gamerpasswordnew" required>
+            <input type="text" id="gamerpass" name="gamerpassword" required>
             <br><br>
             <input type="submit" value="Create">
         </fieldset>

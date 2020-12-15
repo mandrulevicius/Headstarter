@@ -7,10 +7,10 @@ const sqlString = require('sqlstring'); //mysql also has .escape
 // seems like ? placeholder is enough?
 const WEBSITE_PORT = process.env.PORT || 3000;
 //const STATUS_OK_CODE = 200 //feels like overkill to use this
-const CREATION_INPUT_FIELD_NAME = 'gameridnew'
-const LOGIN_INPUT_FIELD_NAME = 'gamerid'
-const CREATION_INPUT_PASSWORD_FIELD_NAME = 'gamerpasswordnew'
-const LOGIN_INPUT_PASSWORD_FIELD_NAME = 'gamerpassword'
+//const CREATION_INPUT_FIELD_NAME = 'gameridnew'
+const USER_FIELD = 'gamerid'
+//const CREATION_INPUT_PASSWORD_FIELD_NAME = 'gamerpasswordnew'
+const PASSWORD_FIELD = 'gamerpassword'
 // This just might be too much... Consider a different naming approach
 
 const mysqlHost = process.env.MYSQL_HOST || 'localhost'; //how does this || work?
@@ -26,14 +26,16 @@ const connectionOptions = {
     user: mysqlUser,
     password: mysqlPassword,
     database: mysqlDatabase
+    //multipleStatements: true
+    //connectionLimit: 10
 };
 
 console.log('MySQL connection: ', connectionOptions)
 
-let sqlConnection = mysql.createConnection(connectionOptions);
+//let sqlConnection = mysql.createConnection(connectionOptions);
+let sqlConnection = mysql.createPool(connectionOptions);
 
-sqlConnection.connect();
-
+/*
 // depends_on doesnt solve calling db before ready because it doesnt wait for dependants to be ready
 // can restart after mysql is finished booting up
 
@@ -56,10 +58,12 @@ sqlConnection.query('SELECT * FROM web_users', function (error, results, fields)
 
     //response.status(200).send(responseString); this is for express
 });
+*/
 
-
+// should encrypt password before sending
 
 const server = http.createServer(function (request, response) {
+    /*
     let body = '';
     request.on('data', function (chunk){
         body += chunk;
@@ -72,9 +76,8 @@ const server = http.createServer(function (request, response) {
             response.writeHead(200); //Why do I need this?
             // send a response?
             //response.end();
-
-            // deal with response in .end(callback)?
-            // does that even help me?
+    
+            // deal with response in .end(callback)? THIS is .end already
         };
     });
     response.writeHead(200, { 'Content-Type' : 'text/html'});
@@ -87,9 +90,34 @@ const server = http.createServer(function (request, response) {
         }
         response.end();
     });
-});
+    */
+    let body = [];
+    request.on('error', (error) => {
+        console.error(error);
+    });
+    request.on('data', (chunk) => {
+        body.push(chunk);
+    });
+    request.on('end', () => {
+        body = Buffer.concat(body).toString();  // not sure how this works exactly
 
-server.listen(WEBSITE_PORT, function (error){
+        if (request.method === 'GET' && request.url === '/') {
+            loadPage(response, 'index.html');
+            //sqlConnection.connect();
+        };
+    
+        if (request.method === 'POST') {
+            //try to create user
+            //send response - account created, login
+            console.log('post request body: ', body);
+            parseUserInput(body, response, request.url)
+            //parse user input
+            //loadPage(response, 'user_created.html');
+        }
+    });
+    
+    
+}).listen(WEBSITE_PORT, function (error){
     if (error) {
         console.log('Something went wrong ', error);
     } else {
@@ -99,14 +127,98 @@ server.listen(WEBSITE_PORT, function (error){
     };
 });
 
-sqlConnection.end() // do i need this here?
 
 
-//dont like this function, consider structuring this code differently
-// first write sql part
-// second figure out how logged in page is going to be called
-function parseUserInput(inputString) {
+
+function loadPage(response, pageName) {
+    response.writeHead(200, { 'Content-Type' : 'text/html'});
+    fs.readFile(pageName, function(error, data){
+        if (error) {
+            response.writeHead(404);
+            response.write('Error: File not found');
+        } else {
+            response.write(data);
+        }
+        response.end();
+    });
+}
+
+
+function createNewUser(credentials, response) {
+    //sqlConnection.connect();
+    let sqlQuery = mysql.format('SELECT * FROM web_users WHERE web_user_name=?',
+        credentials[USER_FIELD])
+    sqlConnection.query(sqlQuery, function (error, results, fields) {
+        if (error) throw error;
+        let responseString = '';
+    
+        results.forEach(function(data) {
+            responseString += data.ITEM_NAME + ' : ';
+            console.log(data);
+        });
+    
+        console.log(responseString);
+
+        if (responseString.length == 0) {
+            insertNewUser(credentials, response);
+        } else {
+            loadPage(response, 'user_exists.html');
+            //sqlConnection.end()
+        };
+    })
+};
+
+
+function insertNewUser(credentials, response) {
+    // I might be triple escaping with format function here, ? placeholders and sqlstring.escape
+    let sqlQuery = mysql.format(
+        'INSERT INTO web_users (web_user_name, web_user_password) VALUES(?, ?)',
+        [credentials[USER_FIELD], credentials[PASSWORD_FIELD]])
+    sqlConnection.query(sqlQuery, function (error, results, fields) {
+        if (error) {
+            loadPage(response, 'user_creation_failed.html');
+            throw error; // dont want to just throw, should just print error and move on
+        }
+        loadPage(response, 'user_created.html');
+        //sqlConnection.end()
+
+        /*
+        let responseString = '';
+        //bad, rewrite for insert
+        // is there data in my db now? yes
+        results.forEach(function(data) {
+            responseString += data.ITEM_NAME + ' : ';
+            console.log(data);
+        });
+
+        //results.affectedRows for multiple line inserts
+
+        // should i just catch error, and otherwise go to user_created?
+
+        console.log(responseString);
+        */
+
+
+        /*
+        if (responseString.length == 0) { // check if created
+            loadPage(response, 'user_created.html');
+            
+        } else {
+            loadPage(response, 'user_creation_failed.html');
+        };
+        */
+    })
+};
+    
+
+// might need to use promises to make it better structured
+function parseUserInput(inputString, response, userAction) {
     let credentials = storeUserInput(inputString);
+
+    if (userAction === '/create') {
+        createNewUser(credentials, response);
+    };
+    /*
     let new_user;
     for (let key in credentials) {
         if (key.search(LOGIN_INPUT_FIELD_NAME) !== -1) {
@@ -117,6 +229,8 @@ function parseUserInput(inputString) {
     if (new_user === null) {
         console.log('unindetified user input ', inputString);
     } else if (new_user) {
+
+    if (newUser) {
         if (user_exists(credentials[CREATION_INPUT_FIELD_NAME])) {
             console.log('user already exists: ', 
                 credentials[CREATION_INPUT_FIELD_NAME]);
@@ -140,6 +254,7 @@ function parseUserInput(inputString) {
                 credentials[LOGIN_INPUT_FIELD_NAME]);
         };
     };
+    */
 };
 
 
@@ -160,14 +275,19 @@ function storeUserInput(inputString) {
 
 function sanitizeUserInput(userInput) {
     //Should sanitize before spliting? Need to deal with & and = symbols
+    // Dont need to, http request is already escaped for & and =
+
     //Will not mess up passwords?
     //Prob should do a lot more. 
     //what is whitelist mapping?
     return sqlString.escape(userInput);
 };
 
-
-function is_new_user(inputName) {
+/*
+// solved by checking action url
+function is_new_user(inputName) { 
+    // change this to receive action value
+    // <input type="hidden" name="action" value="login" />
     if (inputName === CREATION_INPUT_FIELD_NAME) {
         return true;
     } else if (inputName === LOGIN_INPUT_FIELD_NAME) {
@@ -175,8 +295,10 @@ function is_new_user(inputName) {
     };
     return null
 };
+*/
 
-
+/*
+OLD CODE
 // might be too many seperate calls to db, should use less?
 // then would have unnecessary data
 function user_exists(userName) {
@@ -196,8 +318,6 @@ function user_exists(userName) {
         //};
     
         console.log(responseString);
-
-        results = responseString
     });
     // how to get data out of callback function?
 
@@ -222,3 +342,4 @@ function is_password_ok(userName, userPassword) {
 function validate_password(password) {
     //check if password meets minimum requirements
 }
+*/
