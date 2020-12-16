@@ -10,9 +10,10 @@
         Welcome
     </h1>
     <p>
-        Login successful.
+        ${message}
     </p>
-    <button type="submit" formaction="/list" formmethod="POST">User list</button>
-    <button type="submit" formaction="/logout" formmethod="GET">Logout</button>
-</body>
+    <form action="/back_to_${page}" method="POST">
+        <input type="submit" name="back" value="Back">
+    </form>
+    </body>
 </html>
