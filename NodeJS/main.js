@@ -1,5 +1,5 @@
 'use strict';
-//THIS CODE IS HORRIBLE, CONNECTIONS REGULARLY THROW ERRORS INTO CONSOLE
+//THIS CODE IS STILL PRETTY BAD, CONNECTIONS REGULARLY THROW ERRORS INTO CONSOLE
 //BUT IT WORKS
 const http = require('http');  // use express?
 const fs = require('fs');
@@ -24,7 +24,7 @@ const mysqlUser = process.env.MYSQL_USER || 'root';
 const mysqlPassword = process.env.MYSQL_PASSWORD || 'test99rootpasses';
 const mysqlDatabase = process.env.MYSQL_DATABASE || 'website_data';
 //should these still be consts?
-// from what i understand, there are two types of consts - the full uppercase and lowercase
+// from what I understand, there are two types of consts - the full uppercase and lowercase
 
 const connectionOptions = {
     host: mysqlHost,
@@ -39,33 +39,8 @@ const connectionOptions = {
 console.log('MySQL connection: ', connectionOptions);
 
 //let sqlConnection = mysql.createConnection(connectionOptions);
-let sqlConnection = mysql.createPool(connectionOptions);
-//should rename to sqlPool? should use .getConnection, connection.release()??
-
-/*
-// depends_on doesnt solve calling db before ready because it doesnt wait for dependants to be ready
-// can restart after mysql is finished booting up
-
-// also seems to be an authentication issue. nodejs doesnt support mysql8
-// solved with initialization sql script
-sqlConnection.query('SELECT * FROM web_users', function (error, results, fields) {
-    if (error) throw error;
-    let responseString = '';
-
-    results.forEach(function(data) {
-        responseString += data.ITEM_NAME + ' : ';
-        console.log(data);
-    });
-
-    if (responseString.length == 0) {
-        responseString = 'No records found';
-    };
-
-    console.log(responseString);
-
-    //response.status(200).send(responseString); this is for express
-});
-*/
+let sqlPool = mysql.createPool(connectionOptions);
+//should use .getConnection, connection.release()??
 
 // should encrypt password before sending
 
@@ -82,11 +57,9 @@ const server = http.createServer(function (request, response) {
 
         if (request.method === 'GET' && request.url === '/') {
             loadPage(response, INDEX_SITE, WELCOME_MESSAGE);
-            //sqlConnection.connect();
         };
     
         if (request.method === 'POST') {
-            console.log('!!POST REQUEST BODY: ', body);
             parseUserInput(body, response, request.url);
         };
     });
@@ -106,7 +79,17 @@ const server = http.createServer(function (request, response) {
 // might need to use promises to make it better structured
 function parseUserInput(inputString, response, userAction) {
     let credentials = storeUserInput(inputString);
-
+    for (let [key, value] of Object.entries(credentials)) {
+        if (value.length > 50) {
+            if (key === USER_FIELD) {
+                loadPage(response, INDEX_SITE, 'User name too long');
+                return ;
+            } else if (key === PASSWORD_FIELD) {
+                loadPage(response, INDEX_SITE, 'Password too long');
+                return ;
+            };
+        };
+    };
     if (userAction === '/create') {
         createNewUser(credentials, response);
     } else if (userAction === '/login') {
@@ -131,18 +114,16 @@ function storeUserInput(inputString) {
     // Could do for (let <field> of <text>)
     inputTextArray.forEach(inputField => {
         let inputFieldArray = inputField.split('=');
-        console.log(inputFieldArray);
         inputDictionary[inputFieldArray[0]] = 
             sanitizeUserInput(inputFieldArray[1]);
     });
-    console.log(inputDictionary);
     return inputDictionary;   
 };
 
 
 function sanitizeUserInput(userInput) {
     //Should sanitize before spliting? Need to deal with & and = symbols
-    // Dont need to, http request is already escaped for & and =
+    // -Dont need to, http request is already escaped for & and =
 
     //Will not mess up passwords? - No
     //Prob should do a lot more. - No
@@ -165,7 +146,7 @@ function loadPage(response, pageName) {
 };
 
 
-//same name function is ok as long as it has different parameters?
+//same name function is ok as long as it has different parameters
 function loadPage(response, pageName, message) {
     response.writeHead(200, { 'Content-Type' : 'text/html'});
     fs.readFile(pageName, function(error, data){
@@ -188,14 +169,11 @@ function loadPage(response, pageName, message, previousPage) {
             response.writeHead(404);
             response.write('Error: File not found');
         } else {
-            console.log('MESSAGE ', message);
-            console.log('RPEVIOUS PAGE ', previousPage);
             let htmlString = insertMessageIntoHtml(data.toString(), message);
             if (pageName === USER_LIST_SITE) {
                 // if unnecessary, but this is still a mess so might as well leave it
                 htmlString = htmlString.replace('${page}', previousPage)
             };
-            console.log(htmlString);
             response.write(htmlString);
         }
         response.end();
@@ -210,26 +188,20 @@ function insertMessageIntoHtml(htmlString, message){
 
 
 function createNewUser(credentials, response) {
-    //sqlConnection.connect();
     let sqlQuery = mysql.format('SELECT * FROM web_users WHERE web_user_name=?',
         credentials[USER_FIELD]);
-    sqlConnection.query(sqlQuery, function (error, results, fields) {
+    sqlPool.query(sqlQuery, function (error, results, fields) {
         if (error) throw error;
         let responseString = '';
     
         results.forEach(function(data) {
-            responseString += data.ITEM_NAME + ' : ';
-            //this prob results in undefined responseString
-            console.log(data);
+            responseString += data['web_user_name'] + ' : ';
         });
-    
-        console.log('!!CREATE NEW ', responseString);
 
         if (responseString.length == 0) {
             insertNewUser(credentials, response);
         } else {
             loadPage(response, INDEX_SITE, 'User name taken. Choose a different one.');
-            //sqlConnection.end();
         };
     });
 };
@@ -240,7 +212,7 @@ function insertNewUser(credentials, response) {
     let sqlQuery = mysql.format(
         'INSERT INTO web_users (web_user_name, web_user_password) VALUES(?, ?)',
         [credentials[USER_FIELD], credentials[PASSWORD_FIELD]]);
-    sqlConnection.query(sqlQuery, function (error, results, fields) {
+    sqlPool.query(sqlQuery, function (error, results, fields) {
         if (error) {
             loadPage(response, INDEX_SITE, 'User creation failed.');
             throw error; // dont want to just throw, should just print error and move on
@@ -253,24 +225,19 @@ function insertNewUser(credentials, response) {
 function loginUser(credentials, response) {
     let sqlQuery = mysql.format(
         'SELECT * FROM web_users WHERE web_user_name=?', credentials[USER_FIELD]);
-    sqlConnection.query(sqlQuery, function (error, results, fields) {
+    sqlPool.query(sqlQuery, function (error, results, fields) {
         if (error) throw error;
         let responseString = '';
         let responseDict
 
         results.forEach(function(data) {
-            responseString += data.ITEM_NAME + ' : ';
+            responseString += data['web_user_name'];
             responseDict = data
         });
     
-        // how to get password from responseString?
-        // why is responseString undefined?
-        // because callback function is still doing its thing when console.log is called?
-        // or because data.ITEM_NAME is not the right call?
-        // - because data.ITEM_NAME is wrong.
-        // but still, why is callback not an issue here?
+        // what was data.ITEM_NAME supposed to do?
+        // why is callback not an issue here?
 
-        // this relies on responseString being empty instead of containing undefined value..
         if (responseString.length == 0) {
             loadPage(response, INDEX_SITE, `Login failed. User ${credentials[USER_FIELD]} does not exist.`);
         } else {
@@ -295,24 +262,20 @@ function passwordMatch(inputPassword, dbPassword) {
 
 function listUsers(response, loggedIn) {
     let sqlQuery = mysql.format('SELECT * FROM web_users');
-    sqlConnection.query(sqlQuery, function (error, results, fields) {
+    sqlPool.query(sqlQuery, function (error, results, fields) {
         if (error) throw error;
         let responseString = '';
     
         results.forEach(function(data) {
-            responseString += data['web_user_name'] + '\n';
-            console.log(data);
+            responseString += data['web_user_name'] + '<br>';
         });
     
-        console.log('!!LIST ', responseString);
+        console.log('LIST ', responseString);
 
         if (responseString.length == 0) {
             loadPage(response, INDEX_SITE, 'No users found.');
             // cannot be empty if user logged in
         } else {
-            // load user list here
-            // if logged in, load with backtologgin
-            // else load with backtoindex
             if (loggedIn) {
                 loadPage(response, USER_LIST_SITE, responseString, 'logged_in')
             } else {
