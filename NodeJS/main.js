@@ -39,6 +39,7 @@ console.log('MySQL connection: ', connectionOptions);
 
 //let sqlConnection = mysql.createConnection(connectionOptions);
 let sqlConnection = mysql.createPool(connectionOptions);
+//should rename to sqlPool? should use .getConnection, connection.release()??
 
 /*
 // depends_on doesnt solve calling db before ready because it doesnt wait for dependants to be ready
@@ -185,7 +186,8 @@ function insertNewUser(credentials, response) {
             throw error; // dont want to just throw, should just print error and move on
         }
         loadPage(response, 'user_created.html');
-        //sqlConnection.end()
+        //sqlConnection.end();
+        //sqlPool.release();??
 
         /*
         let responseString = '';
@@ -222,27 +224,43 @@ function loginUser(credentials, response) {
     sqlConnection.query(sqlQuery, function (error, results, fields) {
         if (error) throw error;
         let responseString = '';
-    
+        let responseDict
+
+        //console.log('!!SQL DATA');
         results.forEach(function(data) {
             responseString += data.ITEM_NAME + ' : ';
-            console.log(data);
+            //console.log(data);
+            //console.log(data.ITEM_NAME);
+            responseDict = data
         });
     
-        console.log('!!LOGIN ', responseString);
+        //console.log('!!LOGIN ', responseString);
+        //console.log('!!DATA ', responseDict);
+        //console.log('!!CREDENTIALS PASS ', credentials[PASSWORD_FIELD]);
+        //console.log('!!DATABASE PASS ', responseDict['web_user_password']);
+
         // how to get password from responseString?
         // why is responseString undefined?
+        // because callback function is still doing its thing when console.log is called?
+        // or because data.ITEM_NAME is not the right call?
+        // - because data.ITEM_NAME is wrong.
+        // but still, why is callback not an issue here?
 
         if (responseString.length == 0) {
             loadPage(response, 'user_not_exists.html');
         } else {
-            //check password here
-            loadPage(response, 'wrong_password.html');
+            if (passwordMatch(credentials[PASSWORD_FIELD], 
+                responseDict['web_user_password'])) {
+                loadPage(response, 'login_successful.html');
+            } else {
+                loadPage(response, 'wrong_password.html');
+            };
         };
     });    
 };
 
 
-function checkPassword(inputPassword, dbPassword) {
+function passwordMatch(inputPassword, dbPassword) {
     if (inputPassword === dbPassword) {
         return true;
     };
@@ -326,7 +344,7 @@ function parseUserInput(inputString, response, userAction) {
 function storeUserInput(inputString) {
     let inputTextArray = inputString.split('&');
     let inputDictionary = {};
-    // Could do for (let field of text)
+    // Could do for (let <field> of <text>)
     inputTextArray.forEach(inputField => {
         let inputFieldArray = inputField.split('=');
         console.log(inputFieldArray);
@@ -342,9 +360,9 @@ function sanitizeUserInput(userInput) {
     //Should sanitize before spliting? Need to deal with & and = symbols
     // Dont need to, http request is already escaped for & and =
 
-    //Will not mess up passwords?
-    //Prob should do a lot more. 
-    //what is whitelist mapping?
+    //Will not mess up passwords? - No
+    //Prob should do a lot more. - No
+    //what is whitelist mapping? - Dont think about it
     return sqlString.escape(userInput);
 };
 
