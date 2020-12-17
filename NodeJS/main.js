@@ -63,18 +63,18 @@ const server = https.createServer(serverOptions, function (request, response) {
     request.on('end', () => {
         body = Buffer.concat(body).toString();  // not sure how this works exactly
 
-        console.log('request end');
-        console.log(request.method);
-        console.log(request.url);
+        //console.log('request end');
+        //console.log(request.method);
+        //console.log(request.url);
 
         if (request.method === 'GET' && request.url === '/') {
             loadPage(response, INDEX_SITE, WELCOME_MESSAGE);
         };
     
         if (request.method === 'POST') {
-            console.log('before parse');
+            //console.log('before parse');
             parseUserInput(body, request.url, response);
-            console.log('after parse, async');
+            //console.log('after parse, async');
         };
     });
     
@@ -167,6 +167,8 @@ function loadPage(response, pageName, message) {
 function loadPage(response, pageName, message, previousPage) {
     //response.writeHead(200, { 'Content-Type' : 'text/html'});
     response.setHeader('Content-Type', 'text/html');
+    // if you try to do two writeHeads, it messes up and you end up with questions like:
+    // why is length not equal. Why is it sending 61b? thats content length
     fs.readFile(pageName, function(error, data){
         if (error) {
             response.writeHead(404);
@@ -176,17 +178,15 @@ function loadPage(response, pageName, message, previousPage) {
             if (pageName === USER_LIST_SITE) {
                 htmlString = htmlString.replace('${page}', previousPage)
             };
-            console.log('before write')
-            console.log(htmlString)
+            //console.log('before write')
+            //console.log(htmlString)
             response.writeHead(200, {'Content-Length': Buffer.byteLength(htmlString)})
-            // if you try to do two writeHeads, it messes up and you end up with questions like:
-            // why is length not equal. Why is it sending 61b? thats content length
-            console.log('content length ', Buffer.byteLength(htmlString))
             // might fix the premature socket closing issue
-            // might also need to add connection: 'Close' to header
+            // might also need to add connection: 'Close' to header for multiple connections
+            //console.log('content length ', Buffer.byteLength(htmlString))
             response.write(htmlString);
             console.log('after write')
-        }
+        };
         console.log('before response end')
         response.end(function () {
             console.log('on response end')
