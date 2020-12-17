@@ -2,8 +2,10 @@
 //THIS CODE IS STILL PRETTY BAD, CONNECTIONS REGULARLY THROW ERRORS INTO CONSOLE
 //BUT IT WORKS
 const http = require('http');  // use express?
+const https = require('https'); 
 const fs = require('fs');
 const mysql = require('mysql');
+const encryption = require('./encryption')
 const sqlString = require('sqlstring'); //mysql also has .escape
 //do i need to both format and escape??
 // seems like ? placeholder is enough?
@@ -44,7 +46,12 @@ let sqlPool = mysql.createPool(connectionOptions);
 
 // should encrypt password before sending
 
-const server = http.createServer(function (request, response) {
+const serverOptions = {
+    key: fs.readFileSync('ssl/key.pem'),
+    cert: fs.readFileSync('ssl/cert.pem')
+};
+
+const server = https.createServer(serverOptions, function (request, response) {
     let body = [];
     request.on('error', (error) => {
         console.error(error);
@@ -60,7 +67,7 @@ const server = http.createServer(function (request, response) {
         };
     
         if (request.method === 'POST') {
-            parseUserInput(body, response, request.url);
+            parseUserInput(body, request.url, response);
         };
     });
     
@@ -77,7 +84,7 @@ const server = http.createServer(function (request, response) {
 
 
 // might need to use promises to make it better structured
-function parseUserInput(inputString, response, userAction) {
+function parseUserInput(inputString, userAction, response) {
     let credentials = storeUserInput(inputString);
     for (let [key, value] of Object.entries(credentials)) {
         if (value.length > 50) {
@@ -111,7 +118,7 @@ function parseUserInput(inputString, response, userAction) {
 function storeUserInput(inputString) {
     let inputTextArray = inputString.split('&');
     let inputDictionary = {};
-    // Could do for (let <field> of <text>)
+    // Could do for (let <field> of <text>)?
     inputTextArray.forEach(inputField => {
         let inputFieldArray = inputField.split('=');
         inputDictionary[inputFieldArray[0]] = 
@@ -132,20 +139,7 @@ function sanitizeUserInput(userInput) {
 };
 
 
-function loadPage(response, pageName) {
-    response.writeHead(200, { 'Content-Type' : 'text/html'});
-    fs.readFile(pageName, function(error, data){
-        if (error) {
-            response.writeHead(404);
-            response.write('Error: File not found');
-        } else {
-            response.write(data);
-        }
-        response.end();
-    });
-};
-
-
+/*
 //same name function is ok as long as it has different parameters
 function loadPage(response, pageName, message) {
     response.writeHead(200, { 'Content-Type' : 'text/html'});
@@ -160,6 +154,7 @@ function loadPage(response, pageName, message) {
         response.end();
     });
 };
+*/
 
 
 function loadPage(response, pageName, message, previousPage) {
@@ -171,7 +166,6 @@ function loadPage(response, pageName, message, previousPage) {
         } else {
             let htmlString = insertMessageIntoHtml(data.toString(), message);
             if (pageName === USER_LIST_SITE) {
-                // if unnecessary, but this is still a mess so might as well leave it
                 htmlString = htmlString.replace('${page}', previousPage)
             };
             response.write(htmlString);
@@ -209,9 +203,11 @@ function createNewUser(credentials, response) {
 
 function insertNewUser(credentials, response) {
     // I might be triple escaping with format function here, ? placeholders and sqlstring.escape
+    let encryptedData = encryption.encryptPassword(credentials[PASSWORD_FIELD]);
+
     let sqlQuery = mysql.format(
-        'INSERT INTO web_users (web_user_name, web_user_password) VALUES(?, ?)',
-        [credentials[USER_FIELD], credentials[PASSWORD_FIELD]]);
+        'INSERT INTO web_users (web_user_name, web_user_password, web_user_salt) VALUES(?, ?, ?)',
+        [credentials[USER_FIELD], encryptedData.hash, encryptedData.salt]);
     sqlPool.query(sqlQuery, function (error, results, fields) {
         if (error) {
             loadPage(response, INDEX_SITE, 'User creation failed.');
@@ -241,8 +237,8 @@ function loginUser(credentials, response) {
         if (responseString.length == 0) {
             loadPage(response, INDEX_SITE, `Login failed. User ${credentials[USER_FIELD]} does not exist.`);
         } else {
-            if (passwordMatch(credentials[PASSWORD_FIELD], 
-                responseDict['web_user_password'])) {
+            if (encryption.validatePassword(credentials[PASSWORD_FIELD], 
+                responseDict['web_user_password'], responseDict['web_user_salt'])) {
                 loadPage(response, LOGGED_IN_SITE, 'Login successful.');
             } else {
                 loadPage(response, INDEX_SITE, 'Login failed. Wrong password.');
@@ -252,13 +248,15 @@ function loginUser(credentials, response) {
 };
 
 
+/*
+OLD CODE
 function passwordMatch(inputPassword, dbPassword) {
     if (inputPassword === dbPassword) {
         return true;
     };
     return false;
 };
-
+*/
 
 function listUsers(response, loggedIn) {
     let sqlQuery = mysql.format('SELECT * FROM web_users');
@@ -269,8 +267,6 @@ function listUsers(response, loggedIn) {
         results.forEach(function(data) {
             responseString += data['web_user_name'] + '<br>';
         });
-    
-        console.log('LIST ', responseString);
 
         if (responseString.length == 0) {
             loadPage(response, INDEX_SITE, 'No users found.');
