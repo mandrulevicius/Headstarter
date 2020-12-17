@@ -6,11 +6,8 @@ services:
     image: headstarter-nodejs-comp
     depends_on:
       - mysql
-    environment:
-      - MYSQL_HOST=headstarter-mysql-comp
-      - MYSQL_USER=nodejs_server
-      - MYSQL_PASSWORD=test99passes
-      - MYSQL_DATABASE=website_data
+    env_file:
+      - ./NodeJS/nodejs.env
     ports:
       - "30001:3000"
     container_name: headstarter-nodejs-comp
@@ -18,7 +15,6 @@ services:
     build:
       context: ./mysql
     image: headstarter-mysql-comp
-    environment:
-      - MYSQL_ROOT_PASSWORD=test99rootpasses
-      - MYSQL_DATABASE=website_data
+    env_file:
+      - ./MySQL/mysql.env
     container_name: headstarter-mysql-comp

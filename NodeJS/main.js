@@ -14,9 +14,9 @@ const WEBSITE_PORT = process.env.PORT || 3000;
 const USER_FIELD = 'gamerid';
 const PASSWORD_FIELD = 'gamerpassword';
 const INDEX_SITE = 'index.html';
-const LOGGED_IN_SITE = 'logged_in.html';
-const USER_LIST_SITE = 'user_list.html';
-const WELCOME_MESSAGE = 'Welcome. Create account or login.';
+const LOGGED_IN_SITE = 'logged-in.html';
+const USER_LIST_SITE = 'user-list.html';
+const WELCOME_MESSAGE = 'Welcome! Create account or login.';
 
 const mysqlHost = process.env.MYSQL_HOST || 'localhost'; //how does this || work?
 const mysqlPort = process.env.MYSQL_PORT || '3306';
