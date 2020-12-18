@@ -1,14 +1,11 @@
 'use strict';
 //THIS CODE IS STILL PRETTY BAD, CONNECTIONS REGULARLY THROW ERRORS INTO CONSOLE
 //BUT IT WORKS
-const http = require('http');  // use express?
+//const http = require('http');  // use express?
 const https = require('https'); 
 const fs = require('fs');
 const mysql = require('mysql');
 const encryption = require('./encryption')
-const sqlString = require('sqlstring'); //mysql also has .escape
-//do i need to both format and escape??
-// seems like ? placeholder is enough?
 
 const WEBSITE_PORT = process.env.PORT || 3000;
 //const STATUS_OK_CODE = 200 //feels like overkill to use this
@@ -40,11 +37,8 @@ const connectionOptions = {
 
 console.log('MySQL connection: ', connectionOptions);
 
-//let sqlConnection = mysql.createConnection(connectionOptions);
 let sqlPool = mysql.createPool(connectionOptions);
 //should use .getConnection, connection.release()??
-
-// should encrypt password before sending
 
 const serverOptions = {
     key: fs.readFileSync('ssl/key.pem'),
@@ -65,18 +59,12 @@ const server = https.createServer(serverOptions, function (request, response) {
     request.on('end', () => {
         body = Buffer.concat(body).toString();  // not sure how this works exactly
 
-        //console.log('request end');
-        //console.log(request.method);
-        //console.log(request.url);
-
         if (request.method === 'GET' && request.url === '/') {
             loadPage(response, INDEX_SITE, WELCOME_MESSAGE);
         };
     
         if (request.method === 'POST') {
-            //console.log('before parse');
             parseUserInput(body, request.url, response);
-            //console.log('after parse, async');
         };
     });
     
@@ -96,10 +84,10 @@ const server = https.createServer(serverOptions, function (request, response) {
 function parseUserInput(inputString, userAction, response) {
     let credentials = storeUserInput(inputString);
     for (let [key, value] of Object.entries(credentials)) {
-        if (value.length > 50) {
+        if (value.length > 150) {
             if (key === USER_FIELD) {
                 loadPage(response, INDEX_SITE, 'User name too long');
-                return ;
+                return ; // should never go here due to maxlength of input field
             } else if (key === PASSWORD_FIELD) {
                 loadPage(response, INDEX_SITE, 'Password too long');
                 return ;
@@ -130,46 +118,18 @@ function storeUserInput(inputString) {
     // Could do for (let <field> of <text>)?
     inputTextArray.forEach(inputField => {
         let inputFieldArray = inputField.split('=');
-        inputDictionary[inputFieldArray[0]] = 
-            sanitizeUserInput(inputFieldArray[1]);
+        //inputDictionary[inputFieldArray[0]] = 
+        //    sanitizeUserInput(inputFieldArray[1]);
+        inputDictionary[inputFieldArray[0]] = inputFieldArray[1];
     });
     return inputDictionary;   
 };
 
 
-function sanitizeUserInput(userInput) {
-    //Should sanitize before spliting? Need to deal with & and = symbols
-    // -Dont need to, http request is already escaped for & and =
-
-    //Will not mess up passwords? - No
-    //Prob should do a lot more. - No
-    //what is whitelist mapping? - Dont think about it
-    return sqlString.escape(userInput);
-};
-
-
-/*
-//same name function is ok as long as it has different parameters
-function loadPage(response, pageName, message) {
-    response.writeHead(200, { 'Content-Type' : 'text/html'});
-    fs.readFile(pageName, function(error, data){
-        if (error) {
-            response.writeHead(404);
-            response.write('Error: File not found');
-        } else {
-            let htmlString = insertMessageIntoHtml(data.toString(), message);
-            response.write(htmlString);
-        }
-        response.end();
-    });
-};
-*/
-
-
 function loadPage(response, pageName, message, previousPage) {
     //response.writeHead(200, { 'Content-Type' : 'text/html'});
     response.setHeader('Content-Type', 'text/html');
-    response.setHeader('CONNECTION', 'Close');
+    response.setHeader('CONNECTION', 'Close'); //this doesnt seem to be helping
     // if you try to do two writeHeads, it messes up and you end up with questions like:
     // why is length not equal? Why is it writing content length in body?
     fs.readFile(pageName, function(error, data){
@@ -181,28 +141,20 @@ function loadPage(response, pageName, message, previousPage) {
             if (pageName === USER_LIST_SITE) {
                 htmlString = htmlString.replace('${page}', previousPage)
             };
-            //console.log('before write')
-            //console.log(htmlString)
-            //response.writeHead(200, {'Content-Length': Buffer.byteLength(htmlString)})
-            response.writeHead(200, {'Content-Length': htmlString.length})
+            response.writeHead(200, {'Content-Length': Buffer.byteLength(htmlString)})
+            //response.writeHead(200, {'Content-Length': htmlString.length})
             // might fix the premature socket closing issue
             // might also need to add connection: 'Close' to header for multiple connections
             // doesnt help. First request-response ok, every other not.
-            //console.log('content length ', Buffer.byteLength(htmlString))
             response.write(htmlString);
-            //console.log('after write')
         };
-        //console.log('before response end')
-        response.end(function () {
-            //console.log('on response end')
-        });
-        //console.log('after response end, async');
+        response.end();
     });
 };
 
 
 function insertMessageIntoHtml(htmlString, message){
-    // user regex?
+    // user regex? should be fine for now
     return htmlString.replace('${message}', message)
 };
 
@@ -228,9 +180,7 @@ function createNewUser(credentials, response) {
 
 
 function insertNewUser(credentials, response) {
-    // I might be triple escaping with format function here, ? placeholders and sqlstring.escape
     let encryptedData = encryption.encryptPassword(credentials[PASSWORD_FIELD]);
-
     let sqlQuery = mysql.format(
         'INSERT INTO web_users (web_user_name, web_user_password, web_user_salt) VALUES(?, ?, ?)',
         [credentials[USER_FIELD], encryptedData.hash, encryptedData.salt]);
@@ -256,7 +206,6 @@ function loginUser(credentials, response) {
             responseString += data['web_user_name'];
             responseDict = data
         });
-    
         // why is callback not an issue here?
 
         if (responseString.length == 0) {
@@ -280,7 +229,7 @@ function listUsers(response, loggedIn) {
         let responseString = '';
     
         results.forEach(function(data) {
-            responseString += data['web_user_name'] + '<br>';
+            responseString += unescape(data['web_user_name']) + '<br>';
         });
 
         if (responseString.length == 0) {
