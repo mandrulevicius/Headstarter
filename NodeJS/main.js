@@ -206,10 +206,11 @@ function loginUser(credentials, response) {
             responseString += data['web_user_name'];
             responseDict = data
         });
-        // why is callback not an issue here?
+        // why is callback not an issue here for responseString or responseDict?
 
         if (responseString.length == 0) {
-            loadPage(response, INDEX_SITE, `Login failed. User ${credentials[USER_FIELD]} does not exist.`);
+            loadPage(response, INDEX_SITE, 
+                `Login failed. User '${credentials[USER_FIELD]}' does not exist.`);
         } else {
             if (encryption.validatePassword(credentials[PASSWORD_FIELD], 
                 responseDict['web_user_password'], responseDict['web_user_salt'])) {
