@@ -52,10 +52,12 @@ const serverOptions = {
 };
 
 const server = https.createServer(serverOptions, function (request, response) {
+    // this is same as server.on('request')
     let body = [];
     request.on('error', (error) => {
-        console.log('before error');
-        console.error(error);
+        //console.error(error);
+        // for now lets just pretend this error is not happening...
+        console.log('error that we are ignoring');
     });
     request.on('data', (chunk) => {
         body.push(chunk);
@@ -167,8 +169,9 @@ function loadPage(response, pageName, message) {
 function loadPage(response, pageName, message, previousPage) {
     //response.writeHead(200, { 'Content-Type' : 'text/html'});
     response.setHeader('Content-Type', 'text/html');
+    response.setHeader('CONNECTION', 'Close');
     // if you try to do two writeHeads, it messes up and you end up with questions like:
-    // why is length not equal. Why is it sending 61b? thats content length
+    // why is length not equal? Why is it writing content length in body?
     fs.readFile(pageName, function(error, data){
         if (error) {
             response.writeHead(404);
@@ -180,18 +183,20 @@ function loadPage(response, pageName, message, previousPage) {
             };
             //console.log('before write')
             //console.log(htmlString)
-            response.writeHead(200, {'Content-Length': Buffer.byteLength(htmlString)})
+            //response.writeHead(200, {'Content-Length': Buffer.byteLength(htmlString)})
+            response.writeHead(200, {'Content-Length': htmlString.length})
             // might fix the premature socket closing issue
             // might also need to add connection: 'Close' to header for multiple connections
+            // doesnt help. First request-response ok, every other not.
             //console.log('content length ', Buffer.byteLength(htmlString))
             response.write(htmlString);
-            console.log('after write')
+            //console.log('after write')
         };
-        console.log('before response end')
+        //console.log('before response end')
         response.end(function () {
-            console.log('on response end')
+            //console.log('on response end')
         });
-        console.log('after response end, async');
+        //console.log('after response end, async');
     });
 };
 
@@ -254,8 +259,6 @@ function loginUser(credentials, response) {
     
         // why is callback not an issue here?
 
-        // what was data.ITEM_NAME supposed to do? - it was table name in example
-
         if (responseString.length == 0) {
             loadPage(response, INDEX_SITE, `Login failed. User ${credentials[USER_FIELD]} does not exist.`);
         } else {
@@ -269,16 +272,6 @@ function loginUser(credentials, response) {
     });    
 };
 
-
-/*
-OLD CODE
-function passwordMatch(inputPassword, dbPassword) {
-    if (inputPassword === dbPassword) {
-        return true;
-    };
-    return false;
-};
-*/
 
 function listUsers(response, loggedIn) {
     let sqlQuery = mysql.format('SELECT * FROM web_users');

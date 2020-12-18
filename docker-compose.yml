@@ -17,4 +17,8 @@ services:
     image: headstarter-mysql-comp
     env_file:
       - ./MySQL/mysql.env
+    volumes:
+      - headstartdata:/var/lib/mysql
     container_name: headstarter-mysql-comp
+volumes:
+  headstartdata:
