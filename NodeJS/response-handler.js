@@ -17,13 +17,15 @@ const WEB_USER_NAME = 'web_user_name';
 const WEB_USER_PASSWORD = 'web_user_password';
 const WEB_USER_SALT = 'web_user_salt';
 
-const mysqlHost = process.env[MYSQL_HOST] || 'localhost'; //how does this || work?
+const mysqlHost = process.env['MYSQL_HOST'] || 'localhost'; //how does this || work?
 //const mysqlHost = process.env.MYSQL_HOST || 'localhost';
 //dictionary can be called with . too, but it is a bit confusing
-const mysqlPort = process.env[MYSQL_PORT] || '3306';
-const mysqlUser = process.env[MYSQL_USER] || 'root';
-const mysqlPassword = process.env[MYSQL_PASSWORD] || 'test99rootpasses';
-const mysqlDatabase = process.env[MYSQL_DATABASE] || 'website_data';
+// but it does look cleaner... 
+//TODO: Look up best practices and conventions
+const mysqlPort = process.env['MYSQL_PORT'] || '3306';
+const mysqlUser = process.env['MYSQL_USER'] || 'root';
+const mysqlPassword = process.env['MYSQL_PASSWORD'] || 'test99rootpasses';
+const mysqlDatabase = process.env['MYSQL_DATABASE'] || 'website_data';
 //should these still be consts? I think yes, because from what I understand,
 //there are two types of consts - the full uppercase and lowercamelcase
 
@@ -123,7 +125,7 @@ function insertNewUser(credentials, response) {
     let encryptedData = encryption.encryptPassword(credentials[PASSWORD_FIELD]);
     let sqlQuery = mysql.format(
         `INSERT INTO ${WEB_USERS} (${WEB_USER_NAME}, ${WEB_USER_PASSWORD}, ${WEB_USER_SALT}) VALUES(?, ?, ?)`,
-        [credentials[USER_FIELD], encryptedData[hash], encryptedData[salt]]);
+        [credentials[USER_FIELD], encryptedData['hash'], encryptedData['salt']]);
     sqlPool.query(sqlQuery, function (error, results, fields) {
         if (error) {
             html.loadPage(response, INDEX_SITE, 'User creation failed.');
