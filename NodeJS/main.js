@@ -30,8 +30,6 @@ const server = https.createServer(serverOptions, function (request, response) {
     });
     request.on('end', () => {
         body = Buffer.concat(body).toString();
-        console.log('method', request.method)
-        console.log('url', request.url)
 
         responseHandler.handleInput(body, request.url, response);
     });
