@@ -5,7 +5,7 @@ const fs = require('fs');
 exports.loadPage = function loadPage(response, pageName, message, previousPage) {
     //response.writeHead(200, { 'Content-Type' : 'text/html'});
     response.setHeader('Content-Type', 'text/html');
-    response.setHeader('CONNECTION', 'Close'); //this doesnt seem to be helping
+    //response.setHeader('CONNECTION', 'close'); //this doesnt seem to be helping
     // if you try to do two writeHeads, it messes up and you end up with questions like:
     // why is length not equal? Why is it writing content length in body?
     fs.readFile(pageName, function(error, data){

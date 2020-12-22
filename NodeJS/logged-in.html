@@ -12,11 +12,11 @@
     <p>
         ${message}
     </p>
-    <form action="/list_logged_in" method="POST">
+    <form action="/list_logged_in" method="GET">
         <input type="submit" name="list" value="User List">
     </form>
-    <form action="/logout" method="POST">
-        <input type="submit" name="logout" value="Logout">
+    <form action="/logout" method="GET">
+        <input type="submit" value="Logout">
     </form>
 </body>
 </html>

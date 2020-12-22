@@ -7,6 +7,8 @@ const html = require('./html');
 const USER_FIELD = 'gamerid';
 const PASSWORD_FIELD = 'gamerpassword';
 
+const MAX_FIELD_LENGTH = 150 // after escaping
+
 const INDEX_SITE = 'index.html';
 const LOGGED_IN_SITE = 'logged-in.html';
 const USER_LIST_SITE = 'user-list.html';
@@ -17,15 +19,15 @@ const WEB_USER_NAME = 'web_user_name';
 const WEB_USER_PASSWORD = 'web_user_password';
 const WEB_USER_SALT = 'web_user_salt';
 
-const mysqlHost = process.env['MYSQL_HOST'] || 'localhost'; //how does this || work?
+const mysqlHost = process.env.MYSQL_HOST || 'localhost'; //how does this || work?
 //const mysqlHost = process.env.MYSQL_HOST || 'localhost';
 //dictionary can be called with . too, but it is a bit confusing
 // but it does look cleaner... 
 //TODO: Look up best practices and conventions
-const mysqlPort = process.env['MYSQL_PORT'] || '3306';
-const mysqlUser = process.env['MYSQL_USER'] || 'root';
-const mysqlPassword = process.env['MYSQL_PASSWORD'] || 'test99rootpasses';
-const mysqlDatabase = process.env['MYSQL_DATABASE'] || 'website_data';
+const mysqlPort = process.env.MYSQL_PORT || '3306';
+const mysqlUser = process.env.MYSQL_USER || 'root';
+const mysqlPassword = process.env.MYSQL_PASSWORD || 'test99rootpasses';
+const mysqlDatabase = process.env.MYSQL_DATABASE || 'website_data';
 //should these still be consts? I think yes, because from what I understand,
 //there are two types of consts - the full uppercase and lowercamelcase
 
@@ -48,46 +50,45 @@ exports.initMySQLPool = function initMySQLPool() {
 };
 
 
-exports.loadIndexPage = function loadIndexPage(response) {
-    html.loadPage(response, INDEX_SITE, WELCOME_MESSAGE);
-};
-
-
 exports.handleInput = function handleInput(inputString, userAction, response) {
     // too much nesting, refactor
     let credentials;
     if (inputString !== '') {
         credentials = storeUserInput(inputString);
         for (let [key, value] of Object.entries(credentials)) {
-            if (value.length > 150) {
+            if (value.length > MAX_FIELD_LENGTH) {
                 if (key === USER_FIELD) {
                     html.loadPage(response, INDEX_SITE, 'User name too long');
                     return ; // should never go here due to maxlength of input field
                 } else if (key === PASSWORD_FIELD) {
                     html.loadPage(response, INDEX_SITE, 'Password too long');
+                    // should probably set a much higher ceiling for pass, since it gets hashed into 128 anyway
                     return ;
                 };
             };
         };
     };
-    if (userAction === '/create') {
+    if (userAction === '/') {
+        loadIndexPage(response);
+    } else if (userAction === '/create') {
         createNewUser(credentials, response);
     } else if (userAction === '/login') {
         loginUser(credentials, response);
-    } else if (userAction === '/list') {
+    } else if (userAction === '/list?') {
+        // when input button has no name
         listUsers(response, false);
-    } else if (userAction === '/list_logged_in') {
+    } else if (userAction === '/list_logged_in?list=User+List') {
+        // when input button has a name and value
         listUsers(response, true);
-    } else if (userAction === '/back_to_index') {
-        //html.loadPage(response, INDEX_SITE, WELCOME_MESSAGE);
-        module.exports.loadIndexPage(response);
-    } else if (userAction === '/back_to_logged_in') {
+    } else if (userAction === '/back_to_index?') {
+        loadIndexPage(response);
+    } else if (userAction === '/back_to_logged_in?') {
         html.loadPage(response, LOGGED_IN_SITE, 'welcome back from the list');
-    } else if (userAction === '/logout') {
-        //html.loadPage(response, INDEX_SITE, WELCOME_MESSAGE);
-        module.exports.loadIndexPage(response);
+    } else if (userAction === '/logout?') {
+        loadIndexPage(response);
     };
 };
+
 
 function storeUserInput(inputString) {
     let inputTextArray = inputString.split('&');
@@ -98,6 +99,11 @@ function storeUserInput(inputString) {
         inputDictionary[inputFieldArray[0]] = inputFieldArray[1];
     });
     return inputDictionary;   
+};
+
+
+function loadIndexPage(response) {
+    html.loadPage(response, INDEX_SITE, WELCOME_MESSAGE);
 };
 
 
@@ -125,7 +131,7 @@ function insertNewUser(credentials, response) {
     let encryptedData = encryption.encryptPassword(credentials[PASSWORD_FIELD]);
     let sqlQuery = mysql.format(
         `INSERT INTO ${WEB_USERS} (${WEB_USER_NAME}, ${WEB_USER_PASSWORD}, ${WEB_USER_SALT}) VALUES(?, ?, ?)`,
-        [credentials[USER_FIELD], encryptedData['hash'], encryptedData['salt']]);
+        [credentials[USER_FIELD], encryptedData.hash, encryptedData.salt]);
     sqlPool.query(sqlQuery, function (error, results, fields) {
         if (error) {
             html.loadPage(response, INDEX_SITE, 'User creation failed.');
@@ -152,7 +158,7 @@ function loginUser(credentials, response) {
 
         if (responseString.length == 0) {
             html.loadPage(response, INDEX_SITE, 
-                `Login failed. User '${credentials[USER_FIELD]}' does not exist.`);
+                `Login failed. User '${unescape(credentials[USER_FIELD])}' does not exist.`);
         } else {
             if (encryption.validatePassword(credentials[PASSWORD_FIELD], 
                 responseDict[WEB_USER_PASSWORD], responseDict[WEB_USER_SALT])) {
