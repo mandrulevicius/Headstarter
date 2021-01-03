@@ -4,29 +4,38 @@ const serverConfig = require('./config').serverConfig;
 
 const https = require('https'); 
 const controller = require('./controller');
-const mySQLLoader = require('./loaders/database');
+
+const mysql = require('mysql');
+const mySQLConfig = require('./config').mySQLConfig;
+const MySQLDatabase = require('./loaders/database');
 
 
 async function startServer() {
-    let mySQLPool = await mySQLLoader.mySQLPool;
-    console.log('waited for MySQLPool', mySQLPool);
+    let database = new MySQLDatabase(mysql, mySQLConfig);
 
     const server = https.createServer(serverConfig.serverOptions, function (request, response) {
         // this callback function is same as server.on('request')
-        controller.handleRequest(request, response, mySQLPool);
+        controller.handleRequest(request, response, database);
     });
     
-    // init sql pool, make a proxy call. if ok, done. if not, wait 5 seconds, try again
-    // after 3 tries, throw error. 
-    // (this will make sure the server only starts listening when the database is ready)
-    
-    server.listen(serverConfig.internalPort, function (error){
-        if (error) {
-            console.log('Something went wrong while listening to server:', error);
-        } else {
-            console.log('Server is listening on port', serverConfig.externalPort);
-        };
-    });
+    // promise
+    //database.query('SHOW DATABASES;').then(results => {
+    //    console.log(results);
+    //});
+
+    if (await database.testConnection()) {
+        server.listen(serverConfig.internalPort, function (error){
+            if (error) {
+                console.log('Something went wrong while listening to server:', error);
+            } else {
+                console.log('Server is listening on port', serverConfig.externalPort);
+            };
+        });
+    } else {
+        server.close();
+        // not sure if this is doing anything, docker closes the app when its done anyway
+    };
 };
+
 
 startServer();

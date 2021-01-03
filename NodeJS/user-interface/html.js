@@ -6,10 +6,10 @@ exports.loadPage = function loadPage(response, pageName, message, previousPage) 
     response.setHeader('Content-Type', 'text/html');
     // if you try to do two writeHeads, it messes up and you end up with questions like:
     // why is length not equal? Why is it writing content length in body?
-    fs.readFile(`./frontend/${pageName}`, function(error, data){
+    fs.readFile(`./user-interface/${pageName}`, function(error, data){
         if (error) {
             response.writeHead(404);
-            response.write('Error: File not found ');
+            response.write('Error: File not found ', pageName);
         } else {
             let htmlString = insertMessageIntoHtml(data.toString(), message);
             if (previousPage !== '') {

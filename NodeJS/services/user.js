@@ -1,29 +1,23 @@
 'use strict';
 
-const html = require('../frontend/html');
-const encryption = require('../encryption');
-const mysql = require('mysql');
-
-const USER_LIST_SITE = 'user-list.html';
-const INDEX_SITE = 'index.html';
-const LOGGED_IN_SITE = 'logged-in.html';
-//duplicates
+const encryption = require('./encryption');
 
 const USER_FIELD = 'gamerid';
 const PASSWORD_FIELD = 'gamerpassword';
-//duplicates
+//duplicates in input.js, maybe input should be checked in this file?
 
+//database table and column names
 const WEB_USERS = 'web_users';
 const WEB_USER_NAME = 'web_user_name';
 const WEB_USER_PASSWORD = 'web_user_password';
 const WEB_USER_SALT = 'web_user_salt';
 
 
-module.exports.createNewUser = function createNewUser(credentials, response, sqlPool) {
-    let sqlQuery = mysql.format(`SELECT * FROM ${WEB_USERS} WHERE ${WEB_USER_NAME}=?`,
+module.exports.userExists = async function userExists(credentials, database) {
+    let sqlQuery = database.format(`SELECT * FROM ${WEB_USERS} WHERE ${WEB_USER_NAME}=?`,
         credentials[USER_FIELD]);
-    sqlPool.query(sqlQuery, function (error, results, fields) {
-        if (error) throw error;
+    try {
+        let results = await database.query(sqlQuery);
         let responseString = '';
     
         results.forEach(function(data) {
@@ -31,77 +25,99 @@ module.exports.createNewUser = function createNewUser(credentials, response, sql
         });
 
         if (responseString.length == 0) {
-            insertNewUser(credentials, response, sqlPool);
+            console.log('userExists false');
+            return false;
         } else {
-            html.loadPage(response, INDEX_SITE, 'User name taken. Choose a different one.');
+            console.log('userExists true');
+            return true;
         };
-    });
+        // this works, but i feel i might be waiting for too many things to happen
+        // though if emitted event callback function is slow, that doesnt impact anything else
+        // so should be fine
+
+        // maybe this is where i should be emitting events?
+        // then will have to pass response but thats ok.
+        // just finish this and move on to express, maybe wont have to deal with it
+    } catch (error) {
+        console.error(error);
+        return null;
+    } finally {
+        console.log('finally userExists');
+        // should I be returning value here?
+    };
 };
 
 
-function insertNewUser(credentials, response, sqlPool) {
+module.exports.insertNewUser = async function insertNewUser(credentials, database) {
     let encryptedData = encryption.encryptPassword(credentials[PASSWORD_FIELD]);
-    let sqlQuery = mysql.format(
+    let sqlQuery = database.format(
         `INSERT INTO ${WEB_USERS} (${WEB_USER_NAME}, ${WEB_USER_PASSWORD}, ${WEB_USER_SALT}) VALUES(?, ?, ?)`,
         [credentials[USER_FIELD], encryptedData.hash, encryptedData.salt]);
-    sqlPool.query(sqlQuery, function (error, results, fields) {
-        if (error) {
-            html.loadPage(response, INDEX_SITE, 'User creation failed.');
-            throw error; // dont want to just throw, should just print error and move on
-        };
-        html.loadPage(response, INDEX_SITE, 'Account created succesfully. Can login now.');
-    });
+    try {
+        let results = await database.query(sqlQuery);
+        console.log('insertnewuser true');
+        return true;
+    } catch (error) {
+        console.error(error);
+        return false;
+    } finally {
+        console.log('finally insertnewuser');
+    };
 };
   
 
-module.exports.loginUser = function loginUser(credentials, response, sqlPool) {
-    let sqlQuery = mysql.format(
+module.exports.loginUser = async function loginUser(credentials, database) {
+    let sqlQuery = database.format(
         `SELECT * FROM ${WEB_USERS} WHERE ${WEB_USER_NAME}=?`, credentials[USER_FIELD]);
-    sqlPool.query(sqlQuery, function (error, results, fields) {
-        if (error) throw error;
-        let responseString = '';
-        let responseDict;
-
-        results.forEach(function(data) {
-            responseString += data[WEB_USER_NAME];
-            responseDict = data;
-        });
-        // why is callback not an issue here for responseString or responseDict?
-
-        if (responseString.length == 0) {
-            html.loadPage(response, INDEX_SITE, 
-                `Login failed. User '${unescape(credentials[USER_FIELD])}' does not exist.`);
-        } else {
-            if (encryption.validatePassword(credentials[PASSWORD_FIELD], 
-                responseDict[WEB_USER_PASSWORD], responseDict[WEB_USER_SALT])) {
-                html.loadPage(response, LOGGED_IN_SITE, 'Login successful.');
-            } else {
-                html.loadPage(response, INDEX_SITE, 'Login failed. Wrong password.');
+    try {
+        let results = await database.query(sqlQuery);
+        // results contains an array of dictionaries
+        console.log('login');
+        console.log(results);
+        if (Object.keys(results).length === 0) {
+            return {
+                'issue':`Login failed. User '${unescape(credentials[USER_FIELD])}' does not exist.`
             };
-        };
-    });    
+        } else {
+            //let result;
+            //results.forEach(function(data) {
+            //    result = data;
+            //});
+            // array contains only a single entry. forEach might be inefficient.
+            let webUser = results[0];
+
+            if (encryption.validatePassword(credentials[PASSWORD_FIELD], 
+                webUser[WEB_USER_PASSWORD], webUser[WEB_USER_SALT])) {
+                return {
+                    'success':`Login successful. Welcome, ${webUser[WEB_USER_NAME]}`
+                };
+            } else {
+                return {'issue':'Login failed. Wrong password.'};
+            };
+        };      
+    } catch (error) {
+        console.error(error);
+        return {'error':error};
+        //could i write string into dictionary without quotes? no?
+        // how come it works in config database connection options dictionary?
+    };
 };
 
 
-module.exports.listUsers = function listUsers(response, loggedIn, sqlPool) {
-    let sqlQuery = mysql.format(`SELECT * FROM ${WEB_USERS}`);
-    sqlPool.query(sqlQuery, function (error, results, fields) {
-        if (error) throw error;
-        let responseString = '';
-    
+module.exports.listUsers = async function listUsers(database) {
+    let sqlQuery = database.format(`SELECT * FROM ${WEB_USERS}`);
+    try {
+        let results = await database.query(sqlQuery);
+        let users = '';
         results.forEach(function(data) {
-            responseString += unescape(data[WEB_USER_NAME]) + '<br>';
+            users += unescape(data[WEB_USER_NAME]) + '<br>';
         });
-
-        if (responseString.length == 0) {
-            html.loadPage(response, INDEX_SITE, 'No users found.');
-            // cannot be empty if user logged in
-        } else {
-            if (loggedIn) {
-                html.loadPage(response, USER_LIST_SITE, responseString, 'logged_in');
-            } else {
-                html.loadPage(response, USER_LIST_SITE, responseString, 'index');
-            };
+        if (users.length == 0) {
+            return {'issue':'No users found.'};
         };
-    }); 
+        return {'success':users};
+    } catch (error) {
+        console.error(error);
+        return {'error':error};
+    };
 };

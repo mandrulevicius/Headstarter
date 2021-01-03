@@ -3,7 +3,7 @@
 const responseEvents = require('./subscribers').responseEvents;
 
 
-module.exports.handleRequest = function handleRequest(request, response, sqlPool) {
+module.exports.handleRequest = function handleRequest(request, response, database) {
     let body = [];
     request.on('error', (error) => {
         //console.error(error);
@@ -16,7 +16,7 @@ module.exports.handleRequest = function handleRequest(request, response, sqlPool
     request.on('end', () => {
         body = Buffer.concat(body).toString();
 
-        responseEvents.emit(request.url, body, response, sqlPool);
+        responseEvents.emit(request.url, body, response, database);
         // what happens if unknown url is requested?
         // should not crash the whole thing.
 

@@ -6,7 +6,6 @@ const MAX_FIELD_LENGTH = 150 // after escaping
 
 
 module.exports.handleInput = function handleInput(inputString) {
-    //TODO: test empty inputs
     if (inputString === '') {
         return {'error':'Input string empty'};
     };
@@ -39,6 +38,7 @@ function findOutOfBoundsInput(inputDictionary) {
             return key;
             // user field should never be too long because of maxlength of input field
             // input might be circumvented by a direct request
+
             // could set a higher length ceiling for pass, since it gets hashed into 128 anyway
         };
     };
